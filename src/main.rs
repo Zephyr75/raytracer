@@ -43,15 +43,42 @@ fn main() -> Result<(), String> {
     let pro_que = ProQue::builder()
         .dims(dims)
         .src("
-            __kernel void compute(__global int* array, int width) {
-                int y = get_global_id(0);
-                int x = get_global_id(1);
-                int r = 256 * y / width;
-                int g = 256 * x / 700;
+            __kernel void compute(__global int* array, int width, int height) {
+                int x = get_global_id(0);
+                int y = get_global_id(1);
+                int r = 256 * x / width;
+                int g = 256 * y / 900;
                 int b = 0;
                 int a = 255;
+
+
+                if (x == 0 && y == 0) {
+                    r = 255;
+                    g = 255;
+                    b = 255;
+                }
+
                 int color = (a << 24) | (b << 16) | (g << 8) | r;
-                array[x * width + y] = color;
+                array[(height - y - 1) * width + x] = color;
+
+                // compute the first 1000 prime numbers
+                // int n = 0;
+                // int i = 2;
+                // while (n < 200) {
+                //     int j = 2;
+                //     int is_prime = 1;
+                //     while (j < i) {
+                //         if (i % j == 0) {
+                //             is_prime = 0;
+                //             break;
+                //         }
+                //         j = j + 1;
+                //     }
+                //     if (is_prime) {
+                //         n = n + 1;
+                //     }
+                //     i = i + 1;
+                // }
             }
         ")
         .build().unwrap();
@@ -75,6 +102,7 @@ fn main() -> Result<(), String> {
         let kernel = pro_que.kernel_builder("compute")
             .arg(&image)
             .arg(settings::RES_X as i32)
+            .arg(settings::RES_Y as i32)
             .global_work_size(SpatialDims::Two(dims.0, dims.1))
             .build().unwrap();
 
