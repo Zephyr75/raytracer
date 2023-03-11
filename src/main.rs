@@ -5,6 +5,7 @@ use sdl2::rect::Rect;
 use sdl2::render::{Canvas, Texture, TextureCreator};
 use sdl2::video::{Window, WindowContext};
 use std::time::{SystemTime};
+use rayon::prelude::*;
 
 mod utils;
 use utils::settings::{*, self};
@@ -63,8 +64,6 @@ fn main() -> Result<(), String> {
             }
         }
 
-
-
         // Create a buffer to hold the array on the GPU
         let image = pro_que.create_buffer::<i32>().unwrap();
         
@@ -81,11 +80,8 @@ fn main() -> Result<(), String> {
         let mut array = vec![0; dims.0 * dims.1];
         image.read(&mut array).enq().unwrap();
 
-
-
-
         // Create a texture with a gradient
-        let texture = ray_tracing(&texture_creator, array)?;
+        let texture = ray_tracing(&texture_creator, &array)?;
 
         // Render the texture to the canvas
         canvas.copy(&texture, None, Some(Rect::new(0, 0, settings::RES_X as u32, settings::RES_Y as u32)))?;
@@ -110,23 +106,25 @@ fn main() -> Result<(), String> {
 }
 
 
-fn ray_tracing(creator: &TextureCreator<WindowContext>, array: Vec<i32>) -> Result<Texture, String> {
+fn ray_tracing<'a>(creator: &'a TextureCreator<WindowContext>, array: &'a Vec<i32>) -> Result<Texture<'a>, String> {
     let mut texture = creator.create_texture_streaming(Some(sdl2::pixels::PixelFormatEnum::RGBA8888), settings::RES_X as u32, settings::RES_Y as u32)
         .map_err(|e| e.to_string())?;
 
 
     // Set the pixels of the texture to the gradient
     texture.with_lock(None, |buffer: &mut [u8], pitch: usize| {
-        for y in 0..settings::RES_Y {
+        buffer.par_chunks_mut(4 * settings::RES_X)
+        .enumerate()
+        .for_each(|(y, row)| {
             for x in 0..settings::RES_X {
-                let offset = y * pitch + x * 4;
+                let offset = x * 4;
                 let color = array[y * settings::RES_X + x];
-                buffer[offset] = (color >> 16) as u8;
-                buffer[offset + 1] = (color >> 8) as u8;
-                buffer[offset + 2] = color as u8;
-                buffer[offset + 3] = 255;
+                row[offset] = (color >> 24) as u8;
+                row[offset + 1] = (color >> 16) as u8;
+                row[offset + 2] = (color >> 8) as u8;
+                row[offset + 3] = color as u8;
             }
-        }
+        });
     })?;
 
     Ok(texture)
