@@ -47,10 +47,9 @@ fn main() -> Result<(), String> {
                 int y = get_global_id(0);
                 int x = get_global_id(1);
                 int r = 256 * y / width;
-                int g = 0;
+                int g = 256 * x / 700;
                 int b = 0;
                 int a = 255;
-                // combine the four channels into a single int
                 int color = (a << 24) | (b << 16) | (g << 8) | r;
                 array[x * width + y] = color;
             }
@@ -116,7 +115,7 @@ fn ray_tracing<'a>(creator: &'a TextureCreator<WindowContext>, array: &'a Vec<i3
         .map_err(|e| e.to_string())?;
 
     // Set the pixels of the texture to the gradient
-    texture.with_lock(None, |buffer: &mut [u8], pitch: usize| {
+    texture.with_lock(None, |buffer: &mut [u8], _pitch: usize| {
         buffer.par_chunks_mut(4 * settings::RES_X)
         .enumerate()
         .for_each(|(y, row)| {
