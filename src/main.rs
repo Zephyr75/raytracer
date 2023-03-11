@@ -5,6 +5,10 @@ use sdl2::render::{Texture, TextureCreator};
 use sdl2::video::{WindowContext};
 use std::time::{SystemTime};
 use rayon::prelude::*;
+extern crate glam;
+
+// impoort sdl color
+use sdl2::pixels::Color;
 
 mod utils;
 use utils::settings::{*, self};
@@ -38,49 +42,16 @@ fn main() -> Result<(), String> {
     /////////////////////////// OpenCL ///////////////////////////
 
     let dims = (settings::RES_X, settings::RES_Y);
+
+    // Load the OpenCL kernel code from concatenating all .cl files in the src/kernel directory
+    let mut src = std::fs::read_to_string("src/kernel/compute.cl").unwrap();
+    // src.push_str(&std::fs::read_to_string("src/kernel/compute.cl").unwrap());
+
     
     // Create a new OpenCL context and command queue
     let pro_que = ProQue::builder()
         .dims(dims)
-        .src("
-            __kernel void compute(__global int* array, int width, int height) {
-                int x = get_global_id(0);
-                int y = get_global_id(1);
-                int r = 256 * x / width;
-                int g = 256 * y / 900;
-                int b = 0;
-                int a = 255;
-
-
-                if (x == 0 && y == 0) {
-                    r = 255;
-                    g = 255;
-                    b = 255;
-                }
-
-                int color = (a << 24) | (b << 16) | (g << 8) | r;
-                array[(height - y - 1) * width + x] = color;
-
-                // compute the first 1000 prime numbers
-                // int n = 0;
-                // int i = 2;
-                // while (n < 200) {
-                //     int j = 2;
-                //     int is_prime = 1;
-                //     while (j < i) {
-                //         if (i % j == 0) {
-                //             is_prime = 0;
-                //             break;
-                //         }
-                //         j = j + 1;
-                //     }
-                //     if (is_prime) {
-                //         n = n + 1;
-                //     }
-                //     i = i + 1;
-                // }
-            }
-        ")
+        .src(src)
         .build().unwrap();
 
     /////////////////////////// OpenCL ///////////////////////////
