@@ -1,14 +1,19 @@
 extern crate ocl;
 use ocl::{ProQue, SpatialDims};
-use sdl2::pixels::Color;
 use sdl2::rect::Rect;
-use sdl2::render::{Canvas, Texture, TextureCreator};
-use sdl2::video::{Window, WindowContext};
+use sdl2::render::{Texture, TextureCreator};
+use sdl2::video::{WindowContext};
 use std::time::{SystemTime};
 use rayon::prelude::*;
 
 mod utils;
 use utils::settings::{*, self};
+
+mod math;
+use math::ray::Ray;
+
+mod components;
+use components::camera::Camera;
 
 fn main() -> Result<(), String> {
     // Initialize SDL2
@@ -109,7 +114,6 @@ fn main() -> Result<(), String> {
 fn ray_tracing<'a>(creator: &'a TextureCreator<WindowContext>, array: &'a Vec<i32>) -> Result<Texture<'a>, String> {
     let mut texture = creator.create_texture_streaming(Some(sdl2::pixels::PixelFormatEnum::RGBA8888), settings::RES_X as u32, settings::RES_Y as u32)
         .map_err(|e| e.to_string())?;
-
 
     // Set the pixels of the texture to the gradient
     texture.with_lock(None, |buffer: &mut [u8], pitch: usize| {
