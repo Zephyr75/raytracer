@@ -46,6 +46,14 @@ vec3 vec3_scale(vec3 a, float b) {
     return result;
 }
 
+vec3 vec3_addScalar(vec3 a, float b) {
+    vec3 result;
+    result.x = a.x + b;
+    result.y = a.y + b;
+    result.z = a.z + b;
+    return result;
+}
+
 vec3 vec3_unit(vec3 a) {
     float length = sqrt(a.x * a.x + a.y * a.y + a.z * a.z);
     vec3 result;
@@ -81,3 +89,12 @@ struct ray {
 };
 
 typedef struct ray ray;
+
+vec3 ray_pointAt(ray r, float t) {
+    vec3 result;
+    result.x = r.origin.x + r.direction.x * t;
+    result.y = r.origin.y + r.direction.y * t;
+    result.z = r.origin.z + r.direction.z * t;
+    return result;
+}
+

@@ -46,6 +46,15 @@ vec3 vec3_scale(vec3 a, float b) {
   return result;
 }
 
+vec3 vec3_addScalar(vec3 a, float b) {
+    vec3 result;
+    result.x = a.x + b;
+    result.y = a.y + b;
+    result.z = a.z + b;
+    return result;
+}
+
+
 vec3 vec3_unit(vec3 a) {
   float length = sqrt(a.x * a.x + a.y * a.y + a.z * a.z);
   vec3 result;
@@ -80,24 +89,40 @@ struct ray {
 
 typedef struct ray ray;
 
+vec3 ray_pointAt(ray r, float t) {
+    vec3 result;
+    result.x = r.origin.x + r.direction.x * t;
+    result.y = r.origin.y + r.direction.y * t;
+    result.z = r.origin.z + r.direction.z * t;
+    return result;
+}
+
 ////////////////////////////////////////
 ////////////////////////////////////////
 
-bool hit_sphere(vec3 center, float radius, ray r) {
+double hit_sphere(vec3 center, float radius, ray r) {
   vec3 oc = vec3_sub(r.origin, center);
   float a = vec3_dot(r.direction, r.direction);
   float b = 2.0 * vec3_dot(oc, r.direction);
   float c = vec3_dot(oc, oc) - radius * radius;
   float discriminant = b * b - 4 * a * c;
-  return (discriminant > 0);
+    if (discriminant < 0) {
+    return -1.0;
+    } else {
+        return (-b - sqrt(discriminant)) / (2.0 * a);
+    }
 }
 
 vec3 ray_color(ray r) {
-  if (hit_sphere(vec3_new(0.0, 0.0, -1.0), 0.5, r)) {
-    return vec3_new(1.0, 0.0, 0.0);
-  }
+  double t = hit_sphere(vec3_new(0.0, 0.0, -1.0), 0.5, r);
+    if (t > 0.0) {
+        vec3 N = vec3_unit(vec3_sub(ray_pointAt(r, t), vec3_new(0.0, 0.0, -1.0)));
+        return vec3_scale(vec3_addScalar(N, 1.0), 0.5);
+    }
+
+
   vec3 unit_direction = vec3_unit(r.direction);
-  float t = 0.5 * (unit_direction.y + 1.0);
+  t = 0.5 * (unit_direction.y + 1.0);
   vec3 v1 = vec3_add(vec3_scale(vec3_new(1.0, 1.0, 1.0), 1.0 - t),
                      vec3_scale(vec3_new(0.5, 0.7, 1.0), t));
   return v1;
