@@ -13,9 +13,6 @@ use sdl2::pixels::Color;
 mod utils;
 use utils::settings::{*, self};
 
-mod math;
-use math::ray::Ray;
-
 mod components;
 use components::camera::Camera;
 
