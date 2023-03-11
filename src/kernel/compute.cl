@@ -1,82 +1,4 @@
-struct vec3 {
-  float x;
-  float y;
-  float z;
-};
 
-typedef struct vec3 vec3;
-
-vec3 vec3_add(vec3 a, vec3 b) {
-  vec3 result;
-  result.x = a.x + b.x;
-  result.y = a.y + b.y;
-  result.z = a.z + b.z;
-  return result;
-}
-
-vec3 vec3_sub(vec3 a, vec3 b) {
-  vec3 result;
-  result.x = a.x - b.x;
-  result.y = a.y - b.y;
-  result.z = a.z - b.z;
-  return result;
-}
-
-vec3 vec3_mul(vec3 a, vec3 b) {
-  vec3 result;
-  result.x = a.x * b.x;
-  result.y = a.y * b.y;
-  result.z = a.z * b.z;
-  return result;
-}
-
-vec3 vec3_div(vec3 a, vec3 b) {
-  vec3 result;
-  result.x = a.x / b.x;
-  result.y = a.y / b.y;
-  result.z = a.z / b.z;
-  return result;
-}
-
-vec3 vec3_scale(vec3 a, float b) {
-  vec3 result;
-  result.x = a.x * b;
-  result.y = a.y * b;
-  result.z = a.z * b;
-  return result;
-}
-
-vec3 vec3_addScalar(vec3 a, float b) {
-    vec3 result;
-    result.x = a.x + b;
-    result.y = a.y + b;
-    result.z = a.z + b;
-    return result;
-}
-
-
-vec3 vec3_unit(vec3 a) {
-  float length = sqrt(a.x * a.x + a.y * a.y + a.z * a.z);
-  vec3 result;
-  result.x = a.x / length;
-  result.y = a.y / length;
-  result.z = a.z / length;
-  return result;
-}
-
-vec3 vec3_new(float x, float y, float z) {
-  vec3 result;
-  result.x = x;
-  result.y = y;
-  result.z = z;
-  return result;
-}
-
-float vec3_length(vec3 a) {
-  return sqrt(a.x * a.x + a.y * a.y + a.z * a.z);
-}
-
-float vec3_dot(vec3 a, vec3 b) { return a.x * b.x + a.y * b.y + a.z * b.z; }
 
 struct color {
   float r;
@@ -87,29 +9,25 @@ struct color {
 typedef struct color color;
 
 struct ray {
-  vec3 origin;
-  vec3 direction;
+  float3 origin;
+  float3 direction;
 };
 
 typedef struct ray ray;
 
-vec3 ray_pointAt(ray r, float t) {
-    vec3 result;
-    result.x = r.origin.x + r.direction.x * t;
-    result.y = r.origin.y + r.direction.y * t;
-    result.z = r.origin.z + r.direction.z * t;
-    return result;
+float3 ray_pointAt(ray r, float t) {
+  return r.origin + r.direction * t;
 }
 
 ////////////////////////////////////////
 ////////////////////////////////////////
 
-double hit_sphere(vec3 center, float radius, ray r) {
-  vec3 oc = vec3_sub(r.origin, center);
-  float a = vec3_length(r.direction) * vec3_length(r.direction);
-  float half_b = vec3_dot(oc, r.direction);
-  float c = vec3_length(oc) * vec3_length(oc) - radius * radius;
-  float discriminant = half_b * half_b - a * c;
+double hit_sphere(float3 center, float radius, ray r) {
+  float3 oc = r.origin - center;
+  float a = pow(length(r.direction), 2);
+  float half_b = dot(oc, r.direction);
+  float c = pow(length(oc), 2) - pow(radius, 2);
+  float discriminant = pow(half_b, 2) - a * c;
     if (discriminant < 0) {
     return -1.0;
     } else {
@@ -117,18 +35,18 @@ double hit_sphere(vec3 center, float radius, ray r) {
     }
 }
 
-vec3 ray_color(ray r) {
-  double t = hit_sphere(vec3_new(0.0, 0.0, -1.0), 0.5, r);
+float3 ray_color(ray r) {
+  double t = hit_sphere((float3)(0.0, 0.0, -1.0), 0.5, r);
     if (t > 0.0) {
-        vec3 N = vec3_unit(vec3_sub(ray_pointAt(r, t), vec3_new(0.0, 0.0, -1.0)));
-        return vec3_scale(vec3_addScalar(N, 1.0), 0.5);
+        float3 N = normalize(ray_pointAt(r, t) - (float3)(0.0, 0.0, -1.0));
+        return (N + (float3)(1.0)) * (float3)(0.5);
     }
 
 
-  vec3 unit_direction = vec3_unit(r.direction);
+  float3 unit_direction = normalize(r.direction);
   t = 0.5 * (unit_direction.y + 1.0);
-  vec3 v1 = vec3_add(vec3_scale(vec3_new(1.0, 1.0, 1.0), 1.0 - t),
-                     vec3_scale(vec3_new(0.5, 0.7, 1.0), t));
+  float3 v1 = (float3)(1.0, 1.0, 1.0) * (float3)(1.0 - t) +
+              (float3)(0.5, 0.7, 1.0) * (float3)(t);
   return v1;
 }
 
@@ -141,25 +59,21 @@ __kernel void compute(__global int *array, int width, int height) {
   float viewport_width = aspect_ratio * viewport_height;
   float focal_length = 1.0;
 
-  vec3 origin = vec3_new(0.0, 0.0, 0.0);
-  vec3 horizontal = vec3_new(viewport_width, 0.0, 0.0);
-  vec3 vertical = vec3_new(0.0, viewport_height, 0.0);
+  float3 origin = (float3)(0.0);
+  float3 horizontal = (float3)(viewport_width, 0.0, 0.0);
+  float3 vertical = (float3)(0.0, viewport_height, 0.0);
 
-  vec3 lower_left_corner = vec3_sub(
-      vec3_sub(origin, vec3_scale(horizontal, 0.5)), vec3_scale(vertical, 0.5));
+  float3 lower_left_corner = origin - horizontal / 2 - vertical / 2 - (float3)(0.0, 0.0, focal_length);
 
   float u = (float)x / (float)width;
   float v = (float)y / (float)height;
 
   ray r1;
-  r1.origin = vec3_new(0.0, 0.0, 0.0);
-  r1.direction = vec3_sub(
-      vec3_sub(vec3_add(vec3_add(lower_left_corner, vec3_scale(horizontal, u)),
-                        vec3_scale(vertical, v)),
-               origin),
-      vec3_new(0.0, 0.0, focal_length));
+  r1.origin = (float3)(0.0);
+  r1.direction = lower_left_corner + horizontal * u + vertical * v - origin;
+  
 
-  vec3 color = ray_color(r1);
+  float3 color = ray_color(r1);
 
   int r = (int)(255 * color.x);
   int g = (int)(255 * color.y);
