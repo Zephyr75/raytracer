@@ -37,10 +37,16 @@ fn main() -> Result<(), String> {
     let pro_que = ProQue::builder()
         .dims(dims)
         .src("
-            __kernel void compute(__global int* array) {
+            __kernel void compute(__global int* array, int width) {
                 int row = get_global_id(0);
                 int col = get_global_id(1);
-                array[row * 1000 + col] = row * 1000 + col;
+                int r = row % 256;
+                int g = col % 256;
+                int b = (row + col) % 256;
+                int a = 255;
+                // combine the four channels into a single int
+                int color = (a << 24) | (b << 16) | (g << 8) | r;
+                array[row * width + col] = color;
             }
         ")
         .build().unwrap();
@@ -65,6 +71,7 @@ fn main() -> Result<(), String> {
         // Enqueue the compute kernel with the buffer and array dimensions
         let kernel = pro_que.kernel_builder("compute")
             .arg(&image)
+            .arg(settings::RES_X as i32)
             .global_work_size(SpatialDims::Two(dims.0, dims.1))
             .build().unwrap();
 
