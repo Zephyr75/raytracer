@@ -22,7 +22,7 @@ fn main() -> Result<(), String> {
     let video_subsystem = sdl_context.video()?;
 
     // Create a window
-    let window = video_subsystem.window("Gradient Example", settings::RES_X as u32, settings::RES_Y as u32)
+    let window = video_subsystem.window("Raytracer", settings::RES_X as u32, settings::RES_Y as u32)
         .position_centered()
         .build()
         .map_err(|e| e.to_string())?;

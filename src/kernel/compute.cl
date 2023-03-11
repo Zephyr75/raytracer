@@ -72,6 +72,10 @@ vec3 vec3_new(float x, float y, float z) {
   return result;
 }
 
+float vec3_length(vec3 a) {
+  return sqrt(a.x * a.x + a.y * a.y + a.z * a.z);
+}
+
 float vec3_dot(vec3 a, vec3 b) { return a.x * b.x + a.y * b.y + a.z * b.z; }
 
 struct color {
@@ -102,14 +106,14 @@ vec3 ray_pointAt(ray r, float t) {
 
 double hit_sphere(vec3 center, float radius, ray r) {
   vec3 oc = vec3_sub(r.origin, center);
-  float a = vec3_dot(r.direction, r.direction);
-  float b = 2.0 * vec3_dot(oc, r.direction);
-  float c = vec3_dot(oc, oc) - radius * radius;
-  float discriminant = b * b - 4 * a * c;
+  float a = vec3_length(r.direction) * vec3_length(r.direction);
+  float half_b = vec3_dot(oc, r.direction);
+  float c = vec3_length(oc) * vec3_length(oc) - radius * radius;
+  float discriminant = half_b * half_b - a * c;
     if (discriminant < 0) {
     return -1.0;
     } else {
-        return (-b - sqrt(discriminant)) / (2.0 * a);
+        return (-half_b - sqrt(discriminant)) / a;
     }
 }
 
