@@ -26,7 +26,7 @@ fn main() -> Result<(), String> {
         .build()
         .map_err(|e| e.to_string())?;
 
-    // Create a renderer
+    // Create a renderer/pop-os/cosmic-comp
     let mut canvas = window.into_canvas().build().map_err(|e| e.to_string())?;
 
     // Create a texture creator
@@ -44,15 +44,15 @@ fn main() -> Result<(), String> {
         .dims(dims)
         .src("
             __kernel void compute(__global int* array, int width) {
-                int row = get_global_id(0);
-                int col = get_global_id(1);
-                int r = row % 256;
-                int g = col % 256;
-                int b = (row + col) % 256;
+                int y = get_global_id(0);
+                int x = get_global_id(1);
+                int r = 256 * y / width;
+                int g = 0;
+                int b = 0;
                 int a = 255;
                 // combine the four channels into a single int
                 int color = (a << 24) | (b << 16) | (g << 8) | r;
-                array[row * width + col] = color;
+                array[x * width + y] = color;
             }
         ")
         .build().unwrap();
