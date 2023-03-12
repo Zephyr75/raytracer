@@ -111,14 +111,27 @@ ray get_ray(camera c, float u, float v) {
   return r;
 }
 
+ray ray_new(float3 origin, float3 direction) {
+  ray r;
+  r.origin = origin;
+  r.direction = direction;
+  return r;
+}
+
 
 ////////////////////////////////////////
 ////////////////////////////////////////
 
-float3 ray_color(ray r, sphere *spheres, int spheres_size) {
+float3 ray_color(ray r, sphere *spheres, int spheres_size, int depth) {
   hit_record rec;
+  if (depth <= 0) {
+    return (float3)(0.0);
+  }
   if (hit_anything(spheres, spheres_size, r, 0.001, INFINITY, &rec)) {
-    return (rec.normal + 1) * (float3)(0.5);
+    float3 target = rec.p + rec.normal;
+    
+    return (float3)(0.5) * ray_color(ray_new(rec.p, target - rec.p), spheres,
+                           spheres_size, depth - 1);
   }
 
   float3 unit_direction = normalize(r.direction);
@@ -127,6 +140,7 @@ float3 ray_color(ray r, sphere *spheres, int spheres_size) {
 }
 
 ////////////////////////////////////////
+
 
 __kernel void compute(__global int *array, int width, int height) {
   int x = get_global_id(0);
@@ -147,7 +161,7 @@ __kernel void compute(__global int *array, int width, int height) {
   
   ray r1 = get_ray(cam, u, v);
 
-  float3 color = ray_color(r1, spheres, spheres_size);
+  float3 color = ray_color(r1, spheres, spheres_size, 2);
 
   int r = (int)(255 * color.x);
   int g = (int)(255 * color.y);

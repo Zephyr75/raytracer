@@ -41,7 +41,7 @@ fn main() -> Result<(), String> {
     let dims = (settings::RES_X, settings::RES_Y);
 
     // Load the OpenCL kernel code from concatenating all .cl files in the src/kernel directory
-    let mut src = std::fs::read_to_string("src/kernel/compute.cl").unwrap();
+    let src = std::fs::read_to_string("src/kernel/compute.cl").unwrap();
     // src.push_str(&std::fs::read_to_string("src/kernel/compute.cl").unwrap());
 
     
@@ -92,7 +92,7 @@ fn main() -> Result<(), String> {
         match now.elapsed() {
             Ok(elapsed) => {
                 // it prints '2'
-                println!("Fps: {}", 1000 / (elapsed.as_millis() + 1));
+                println!("fps: {}", 1000 / (elapsed.as_millis() + 1));
             }
             Err(e) => {
                 // an error occurred!
