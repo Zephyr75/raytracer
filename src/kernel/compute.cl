@@ -77,6 +77,42 @@ bool hit_anything(sphere *spheres, int spheres_size, ray r, float t_min,
 }
 
 ////////////////////////////////////////
+
+typedef struct {
+  float3 origin;
+  float3 lower_left_corner;
+  float3 horizontal;
+  float3 vertical;
+} camera;
+
+camera camera_new() {
+  float aspect_ratio = 16.0 / 9.0;
+  float viewport_height = 2.0;
+  float viewport_width = aspect_ratio * viewport_height;
+  float focal_length = 1.0;
+  float3 origin = (float3)(0.0);
+  float3 horizontal = (float3)(viewport_width, 0.0, 0.0);
+  float3 vertical = (float3)(0.0, viewport_height, 0.0);
+  float3 lower_left_corner =
+      origin - horizontal / 2 - vertical / 2 - (float3)(0.0, 0.0, focal_length);
+  camera c;
+  c.origin = origin;
+  c.lower_left_corner = lower_left_corner;
+  c.horizontal = horizontal;
+  c.vertical = vertical;
+  return c;
+}
+
+ray get_ray(camera c, float u, float v) {
+  ray r;
+  r.origin = c.origin;
+  r.direction = c.lower_left_corner + c.horizontal * u + c.vertical * v -
+                c.origin;
+  return r;
+}
+
+
+////////////////////////////////////////
 ////////////////////////////////////////
 
 float3 ray_color(ray r, sphere *spheres, int spheres_size) {
@@ -96,24 +132,9 @@ __kernel void compute(__global int *array, int width, int height) {
   int x = get_global_id(0);
   int y = get_global_id(1);
 
-  float viewport_height = 2.0;
-  float aspect_ratio = 16.0 / 9.0;
-  float viewport_width = aspect_ratio * viewport_height;
-  float focal_length = 1.0;
-
-  float3 origin = (float3)(0.0);
-  float3 horizontal = (float3)(viewport_width, 0.0, 0.0);
-  float3 vertical = (float3)(0.0, viewport_height, 0.0);
-
-  float3 lower_left_corner =
-      origin - horizontal / 2 - vertical / 2 - (float3)(0.0, 0.0, focal_length);
-
   float u = (float)x / (float)width;
   float v = (float)y / (float)height;
 
-  ray r1;
-  r1.origin = (float3)(0.0);
-  r1.direction = lower_left_corner + horizontal * u + vertical * v - origin;
 
   sphere spheres[2];
   spheres[0].center = (float3)(0.0, 0.0, -1.0);
@@ -121,6 +142,10 @@ __kernel void compute(__global int *array, int width, int height) {
   spheres[1].center = (float3)(0.0, -100.5, -1.0);
   spheres[1].radius = 100;
   int spheres_size = 2;
+
+  camera cam = camera_new();
+  
+  ray r1 = get_ray(cam, u, v);
 
   float3 color = ray_color(r1, spheres, spheres_size);
 
