@@ -1,6 +1,5 @@
 double degrees_to_radians(double degrees) { return degrees * M_PI / 180.0; }
 
-
 typedef struct {
   float r;
   float g;
@@ -106,8 +105,8 @@ camera camera_new() {
 ray get_ray(camera c, float u, float v) {
   ray r;
   r.origin = c.origin;
-  r.direction = c.lower_left_corner + c.horizontal * u + c.vertical * v -
-                c.origin;
+  r.direction =
+      c.lower_left_corner + c.horizontal * u + c.vertical * v - c.origin;
   return r;
 }
 
@@ -118,39 +117,36 @@ ray ray_new(float3 origin, float3 direction) {
   return r;
 }
 
-
 ////////////////////////////////////////
 
+int seed = 0;
+float* randoms;
 
-int index = 0;
-int random_count = 0;
-int initial_depth = 0;
-
-float random(int seed) {
-  float random = (seed * 0x5DEECE66DL + 0xBL) & ((1L << 48) - 1) >> 16;
-  while (random > 1) {
-    random = random / 10;
-  }
+float random() {
+  float random = randoms[seed % 1440000];
+  random *= 2.;
+  random -= 1.;
+  seed += 1;
   return random;
 }
 
-float3 random_in_unit_sphere() {
-  int seed = index * initial_depth * 3 + random_count;
-  float3 result = (float3)(random(seed), random(seed + 1), random(seed + 2));
-  if (length(result) >= 1) {
-    result = normalize(result);
+float3 random_in_unit_sphere(float3 normal) {
+  float3 result = (float3)(random(), random(), random());
+  while (length(result) >= 1) {
+    result = (float3)(random(), random(), random());
   }
-  random_count += 1;
+  // if (dot(result, normal) < 0) {
+  //   result = -result;
+  // }
   return result;
 }
-
 
 float3 ray_color(ray r, sphere *spheres, int spheres_size, int depth) {
   float3 color = (float3)(1.0);
   while (depth > 0) {
     hit_record rec;
     if (hit_anything(spheres, spheres_size, r, 0.001, INFINITY, &rec)) {
-      float3 target = rec.p + rec.normal + random_in_unit_sphere();
+      float3 target = rec.p + random_in_unit_sphere(rec.normal) + rec.normal;
       r = ray_new(rec.p, target - rec.p);
       color *= (float3)(0.5);
     } else {
@@ -166,17 +162,12 @@ float3 ray_color(ray r, sphere *spheres, int spheres_size, int depth) {
 
 ////////////////////////////////////////
 
-
-
-__kernel void compute(__global int *array, int width, int height, int depth) {
+__kernel void compute(__global int *array, int width, int height, int depth, __global float *random_input) {
   int x = get_global_id(0);
   int y = get_global_id(1);
 
-  index = y * width + x;
-  initial_depth = depth;
-
-  float u = (float)x / (float)width;
-  float v = (float)y / (float)height;
+  randoms = random_input;
+  seed = randoms[x + y * width];
 
 
   sphere spheres[2];
@@ -187,10 +178,22 @@ __kernel void compute(__global int *array, int width, int height, int depth) {
   int spheres_size = 2;
 
   camera cam = camera_new();
-  
-  ray r1 = get_ray(cam, u, v);
 
-  float3 color = ray_color(r1, spheres, spheres_size, depth);
+  float3 color;
+
+  int samples = 100;
+
+  for (int i = 0; i < samples; i++) {
+    float u = (float)(x + random()) / (float)width;
+    float v = (float)(y + random()) / (float)height;
+    ray r1 = get_ray(cam, u, v);
+    color += ray_color(r1, spheres, spheres_size, depth);
+  }
+  float scale = 1.0 / (float)samples;
+  // color.x = sqrt(color.x * scale);
+  // color.y = sqrt(color.y * scale);
+  // color.z = sqrt(color.z * scale);
+  color *= scale;
 
   int r = (int)(255 * color.x);
   int g = (int)(255 * color.y);

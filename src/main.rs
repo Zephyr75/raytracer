@@ -53,7 +53,18 @@ fn main() -> Result<(), String> {
         .src(src)
         .build().unwrap();
 
-    /////////////////////////// OpenCL ///////////////////////////
+    // Create a buffer to hold 50 random floats to pass to the kernel
+    const SIZE: usize = settings::RES_X * settings::RES_Y;
+    let mut rng = rand::thread_rng();
+    let mut randoms = [0.0f32; SIZE];
+    for i in 0..SIZE {
+        randoms[i] = rng.gen();
+    }
+    let randoms_buffer = Buffer::<f32>::builder()
+        .queue(pro_que.queue().clone())
+        .len(SIZE)
+        .copy_host_slice(&randoms)
+        .build().unwrap();
 
     // Wait for user input to exit
     let mut event_pump = sdl_context.event_pump()?;
@@ -68,19 +79,6 @@ fn main() -> Result<(), String> {
         // Create a buffer to hold the array on the GPU
         let image = pro_que.create_buffer::<i32>().unwrap();
         
-        // Create a buffer to hold 50 random floats to pass to the kernel
-        let mut rng = rand::thread_rng();
-        let mut randoms = [0.0f32; 3*settings::BOUNCES];
-        for i in 0..3*settings::BOUNCES {
-            randoms[i] = rng.gen();
-        }
-        let randoms_buffer = Buffer::<f32>::builder()
-            .queue(pro_que.queue().clone())
-            .len(3*settings::BOUNCES)
-            .copy_host_slice(&randoms)
-            .build().unwrap();
-
-        // Write the randoms to the buffer
 
         
         
@@ -90,7 +88,7 @@ fn main() -> Result<(), String> {
             .arg(settings::RES_X as i32)
             .arg(settings::RES_Y as i32)
             .arg(50)
-            // .arg(&randoms_buffer)
+            .arg(&randoms_buffer)
             .global_work_size(SpatialDims::Two(dims.0, dims.1))
             .build().unwrap();
 
