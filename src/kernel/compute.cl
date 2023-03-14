@@ -120,31 +120,60 @@ ray ray_new(float3 origin, float3 direction) {
 
 
 ////////////////////////////////////////
-////////////////////////////////////////
+
+
+int index = 0;
+int random_count = 0;
+int initial_depth = 0;
+
+float random(int seed) {
+  float random = (seed * 0x5DEECE66DL + 0xBL) & ((1L << 48) - 1) >> 16;
+  while (random > 1) {
+    random = random / 10;
+  }
+  return random;
+}
+
+float3 random_in_unit_sphere() {
+  int seed = index * initial_depth * 3 + random_count;
+  float3 result = (float3)(random(seed), random(seed + 1), random(seed + 2));
+  if (length(result) >= 1) {
+    result = normalize(result);
+  }
+  random_count += 1;
+  return result;
+}
+
 
 float3 ray_color(ray r, sphere *spheres, int spheres_size, int depth) {
-  hit_record rec;
-  if (depth <= 0) {
-    return (float3)(0.0);
+  float3 color = (float3)(1.0);
+  while (depth > 0) {
+    hit_record rec;
+    if (hit_anything(spheres, spheres_size, r, 0.001, INFINITY, &rec)) {
+      float3 target = rec.p + rec.normal + random_in_unit_sphere();
+      r = ray_new(rec.p, target - rec.p);
+      color *= (float3)(0.5);
+    } else {
+      float3 unit_direction = normalize(r.direction);
+      float t = 0.5 * (unit_direction.y + 1.0);
+      color *= (float3)(1.0 - t) * (float3)(1.0) + t * (float3)(0.5, 0.7, 1.0);
+      break;
+    }
+    depth--;
   }
-  if (hit_anything(spheres, spheres_size, r, 0.001, INFINITY, &rec)) {
-    float3 target = rec.p + rec.normal;
-    
-    return (float3)(0.5) * ray_color(ray_new(rec.p, target - rec.p), spheres,
-                           spheres_size, depth - 1);
-  }
-
-  float3 unit_direction = normalize(r.direction);
-  float t = 0.5 * (unit_direction.y + 1.0);
-  return (float3)(1.0 - t) * (float3)(1.0) + t * (float3)(0.5, 0.7, 1.0);
+  return color;
 }
 
 ////////////////////////////////////////
 
 
-__kernel void compute(__global int *array, int width, int height) {
+
+__kernel void compute(__global int *array, int width, int height, int depth) {
   int x = get_global_id(0);
   int y = get_global_id(1);
+
+  index = y * width + x;
+  initial_depth = depth;
 
   float u = (float)x / (float)width;
   float v = (float)y / (float)height;
@@ -161,7 +190,7 @@ __kernel void compute(__global int *array, int width, int height) {
   
   ray r1 = get_ray(cam, u, v);
 
-  float3 color = ray_color(r1, spheres, spheres_size, 2);
+  float3 color = ray_color(r1, spheres, spheres_size, depth);
 
   int r = (int)(255 * color.x);
   int g = (int)(255 * color.y);

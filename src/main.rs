@@ -1,8 +1,10 @@
 extern crate ocl;
-use ocl::{ProQue, SpatialDims};
+use ocl::{ProQue, SpatialDims, Buffer};
+use rand::Rng;
 use sdl2::rect::Rect;
 use sdl2::render::{Texture, TextureCreator};
 use sdl2::video::{WindowContext};
+use std::thread::Builder;
 use std::time::{SystemTime};
 use rayon::prelude::*;
 extern crate glam;
@@ -62,15 +64,33 @@ fn main() -> Result<(), String> {
                 _ => {},
             }
         }
-
+        
         // Create a buffer to hold the array on the GPU
         let image = pro_que.create_buffer::<i32>().unwrap();
+        
+        // Create a buffer to hold 50 random floats to pass to the kernel
+        let mut rng = rand::thread_rng();
+        let mut randoms = [0.0f32; 3*settings::BOUNCES];
+        for i in 0..3*settings::BOUNCES {
+            randoms[i] = rng.gen();
+        }
+        let randoms_buffer = Buffer::<f32>::builder()
+            .queue(pro_que.queue().clone())
+            .len(3*settings::BOUNCES)
+            .copy_host_slice(&randoms)
+            .build().unwrap();
+
+        // Write the randoms to the buffer
+
+        
         
         // Enqueue the compute kernel with the buffer and array dimensions
         let kernel = pro_que.kernel_builder("compute")
             .arg(&image)
             .arg(settings::RES_X as i32)
             .arg(settings::RES_Y as i32)
+            .arg(50)
+            // .arg(&randoms_buffer)
             .global_work_size(SpatialDims::Two(dims.0, dims.1))
             .build().unwrap();
 
