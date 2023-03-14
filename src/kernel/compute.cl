@@ -120,12 +120,13 @@ ray ray_new(float3 origin, float3 direction) {
 ////////////////////////////////////////
 
 int seed = 0;
+int total = 0;
 float* randoms;
 
 float random() {
-  float random = randoms[seed % 1440000];
-  // random *= 2.;
-  // random -= 1.;
+  float random = randoms[seed % total];
+  random *= 2.;
+  random -= 1.;
   seed += 1;
   return random;
 }
@@ -166,46 +167,51 @@ __kernel void compute(__global int *array, int width, int height, int depth, __g
   int x = get_global_id(0);
   int y = get_global_id(1);
 
-  // randoms = random_input;
-  // seed = random_input[x + y * width];
+  randoms = random_input;
+  total = width * height;
+  seed = round(random_input[x + y * width] * total);
 
-  if (x==0 && y==0) {
-    printf("0: %f\n", random_input[0]);
-    printf("1: %f\n", random_input[1]);
-    printf("2: %f\n", random_input[2]);
+  // if (x==0 && y==0) {
+  //   printf("0: %f\n", random());
+  //   printf("1: %f\n", random());
+  //   printf("2: %f\n", random());
+  // }
+
+  if (y == height / 2) {
+    printf("seed: %d\n", seed);
   }
 
 
-  // sphere spheres[2];
-  // spheres[0].center = (float3)(0.0, 0.0, -1.0);
-  // spheres[0].radius = 0.5;
-  // spheres[1].center = (float3)(0.0, -100.5, -1.0);
-  // spheres[1].radius = 100;
-  // int spheres_size = 2;
+  sphere spheres[2];
+  spheres[0].center = (float3)(0.0, 0.0, -1.0);
+  spheres[0].radius = 0.5;
+  spheres[1].center = (float3)(0.0, -100.5, -1.0);
+  spheres[1].radius = 100;
+  int spheres_size = 2;
 
-  // camera cam = camera_new();
+  camera cam = camera_new();
 
-  // float3 color;
+  float3 color;
 
-  // int samples = 100;
+  int samples = 100;
 
-  // for (int i = 0; i < samples; i++) {
-  //   float u = (float)(x + random()) / (float)width;
-  //   float v = (float)(y + random()) / (float)height;
-  //   ray r1 = get_ray(cam, u, v);
-  //   color += ray_color(r1, spheres, spheres_size, depth);
-  // }
-  // float scale = 1.0 / (float)samples;
-  // // color.x = sqrt(color.x * scale);
-  // // color.y = sqrt(color.y * scale);
-  // // color.z = sqrt(color.z * scale);
-  // color *= scale;
+  for (int i = 0; i < samples; i++) {
+    float u = (float)(x + random()) / (float)width;
+    float v = (float)(y + random()) / (float)height;
+    ray r1 = get_ray(cam, u, v);
+    color += ray_color(r1, spheres, spheres_size, depth);
+  }
+  float scale = 1.0 / (float)samples;
+  // color.x = sqrt(color.x * scale);
+  // color.y = sqrt(color.y * scale);
+  // color.z = sqrt(color.z * scale);
+  color *= scale;
 
-  // int r = (int)(255 * color.x);
-  // int g = (int)(255 * color.y);
-  // int b = (int)(255 * color.z);
-  // int a = 255;
+  int r = (int)(255 * color.x);
+  int g = (int)(255 * color.y);
+  int b = (int)(255 * color.z);
+  int a = 255;
 
-  // int color2 = (a << 24) | (b << 16) | (g << 8) | r;
-  // array[(height - y - 1) * width + x] = color2;
+  int color2 = (a << 24) | (b << 16) | (g << 8) | r;
+  array[(height - y - 1) * width + x] = color2;
 }

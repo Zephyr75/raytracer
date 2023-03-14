@@ -60,11 +60,11 @@ fn main() -> Result<(), String> {
     // Create a buffer to hold 50 random floats to pass to the kernel
     // let randoms = ocl_extras::scrambled_vec((0.0, 2.0), pro_que.dims().to_len());
 
-    const SIZE: usize = 50;
+    const SIZE: usize = settings::RES_X * settings::RES_Y;
 
     //create a vector of random numbers
     let mut rng = thread_rng();
-    let random_values: Vec<f32> = (0..50).map(|_| rng.gen_range(0.0..1.0)).collect();
+    let random_values: Vec<f32> = (0..SIZE).map(|_| rng.gen_range(0.0..1.0)).collect();
     let randoms_buffer = pro_que.create_buffer::<f32>()?;
     randoms_buffer.write(&random_values).enq().unwrap();
     
