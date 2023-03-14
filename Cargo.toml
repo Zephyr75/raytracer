@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 glam = "0.23.0"
 ocl = "0.19.4"
+ocl-extras = "0.1.1"
 rand = "0.8.5"
 rayon = "1.7.0"
 sdl2 = "0.35.2"

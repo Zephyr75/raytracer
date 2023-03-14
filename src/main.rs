@@ -1,6 +1,7 @@
 extern crate ocl;
-use ocl::{ProQue, SpatialDims, Buffer};
-use rand::Rng;
+use ocl::{ProQue, SpatialDims, Buffer, MemFlags};
+extern crate ocl_extras;
+use rand::{Rng, thread_rng};
 use sdl2::rect::Rect;
 use sdl2::render::{Texture, TextureCreator};
 use sdl2::video::{WindowContext};
@@ -53,19 +54,20 @@ fn main() -> Result<(), String> {
         .src(src)
         .build().unwrap();
 
-    // Create a buffer to hold 50 random floats to pass to the kernel
-    const SIZE: usize = settings::RES_X * settings::RES_Y;
-    let mut rng = rand::thread_rng();
-    let mut randoms = [0.0f32; SIZE];
-    for i in 0..SIZE {
-        randoms[i] = rng.gen();
-    }
-    let randoms_buffer = Buffer::<f32>::builder()
-        .queue(pro_que.queue().clone())
-        .len(SIZE)
-        .copy_host_slice(&randoms)
-        .build().unwrap();
+    // Create a buffer to hold the array on the GPU
+    let image = pro_que.create_buffer::<i32>()?;
 
+    // Create a buffer to hold 50 random floats to pass to the kernel
+    // let randoms = ocl_extras::scrambled_vec((0.0, 2.0), pro_que.dims().to_len());
+
+    const SIZE: usize = 50;
+
+    //create a vector of random numbers
+    let mut rng = thread_rng();
+    let random_values: Vec<f32> = (0..50).map(|_| rng.gen_range(0.0..1.0)).collect();
+    let randoms_buffer = pro_que.create_buffer::<f32>()?;
+    randoms_buffer.write(&random_values).enq().unwrap();
+    
     // Wait for user input to exit
     let mut event_pump = sdl_context.event_pump()?;
     'running: loop {
@@ -76,10 +78,6 @@ fn main() -> Result<(), String> {
             }
         }
         
-        // Create a buffer to hold the array on the GPU
-        let image = pro_que.create_buffer::<i32>().unwrap();
-        
-
         
         
         // Enqueue the compute kernel with the buffer and array dimensions
@@ -87,16 +85,18 @@ fn main() -> Result<(), String> {
             .arg(&image)
             .arg(settings::RES_X as i32)
             .arg(settings::RES_Y as i32)
-            .arg(50)
+            .arg(settings::BOUNCES as i32)
             .arg(&randoms_buffer)
             .global_work_size(SpatialDims::Two(dims.0, dims.1))
-            .build().unwrap();
+            .build()?;
 
-        unsafe { kernel.enq().unwrap(); }
+        kernel.set_arg(4, Some(&randoms_buffer))?;
+
+        unsafe { kernel.enq()?; }
         
         // Read the computed array back from the GPU
         let mut array = vec![0; dims.0 * dims.1];
-        image.read(&mut array).enq().unwrap();
+        image.read(&mut array).enq()?;
 
         // Create a texture with a gradient
         let texture = ray_tracing(&texture_creator, &array)?;
