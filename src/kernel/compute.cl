@@ -1,5 +1,33 @@
 double degrees_to_radians(double degrees) { return degrees * M_PI / 180.0; }
 
+int seed = 0;
+int total = 0;
+float* randoms;
+
+float random() {
+  float random = randoms[seed % total];
+  random *= 2.;
+  random -= 1.;
+  seed += 1;
+  return random;
+}
+
+float3 random_in_unit_sphere() {
+  float3 result = (float3)(random(), random(), random());
+  while (length(result) >= 1) {
+    result = (float3)(random(), random(), random());
+  }
+  // if (dot(result, normal) < 0) { //Uncomment for Lambertian
+  //   result = -result;
+  // }
+  return result;
+}
+
+float3 reflect(const float3 v, const float3 n) {
+  return v - 2 * dot(v, n) * n;
+}
+
+
 typedef struct {
   float r;
   float g;
@@ -15,23 +43,39 @@ typedef struct {
 float3 at(ray r, float t) { return r.origin + r.direction * t; }
 
 ////////////////////////////////////////
+typedef enum { LAMBERTIAN, METAL, DIELECTRIC } material_type;
+
+typedef struct {
+  color albedo;
+  material_type type;
+} material;
+
 
 typedef struct {
   float t;
   float3 p;
   float3 normal;
   bool front_face;
+  material mat;
 } hit_record;
 void set_face_normal(hit_record *rec, ray r, float3 outward_normal) {
   rec->front_face = dot(r.direction, outward_normal) < 0;
   rec->normal = rec->front_face ? outward_normal : -outward_normal;
 }
 
+bool near_zero(float3 v) {
+  const float epsilon = 1e-8;
+  return (fabs(v.x) < epsilon) && (fabs(v.y) < epsilon) && (fabs(v.z) < epsilon);
+}
+
+
+
 ////////////////////////////////////////
 
 typedef struct {
   float3 center;
   float radius;
+  material mat;
 } sphere;
 
 bool hit(sphere s, ray r, float t_min, float t_max, hit_record *rec) {
@@ -57,6 +101,7 @@ bool hit(sphere s, ray r, float t_min, float t_max, hit_record *rec) {
   rec->normal = (rec->p - s.center) / s.radius;
   float3 outward_normal = (rec->p - s.center) / s.radius;
   set_face_normal(rec, r, outward_normal);
+  rec->mat = s.mat;
   return true;
 }
 
@@ -74,6 +119,8 @@ bool hit_anything(sphere *spheres, int spheres_size, ray r, float t_min,
   }
   return hit_anything;
 }
+
+
 
 ////////////////////////////////////////
 
@@ -117,37 +164,38 @@ ray ray_new(float3 origin, float3 direction) {
   return r;
 }
 
+
+
+bool scatter(material mat, hit_record *rec, color *attenuation, ray *scattered) {
+  if (mat.type == LAMBERTIAN) {
+    float3 scatter_direction = rec->normal + random_in_unit_sphere();
+    if (near_zero(scatter_direction)) {
+      scatter_direction = rec->normal;
+    }
+    *scattered = ray_new(rec->p, scatter_direction);
+    *attenuation = mat.albedo;
+    return true;
+  }
+  if (mat.type == METAL) {
+    float3 reflected = reflect(normalize(rec->normal), rec->normal);
+    *scattered = ray_new(rec->p, reflected);
+    *attenuation = mat.albedo;
+    return (dot(scattered->direction, rec->normal) > 0);
+  }
+  return false;
+}
+
+
 ////////////////////////////////////////
 
-int seed = 0;
-int total = 0;
-float* randoms;
 
-float random() {
-  float random = randoms[seed % total];
-  random *= 2.;
-  random -= 1.;
-  seed += 1;
-  return random;
-}
-
-float3 random_in_unit_sphere(float3 normal) {
-  float3 result = (float3)(random(), random(), random());
-  while (length(result) >= 1) {
-    result = (float3)(random(), random(), random());
-  }
-  if (dot(result, normal) < 0) {
-    result = -result;
-  }
-  return result;
-}
 
 float3 ray_color(ray r, sphere *spheres, int spheres_size, int depth) {
   float3 color = (float3)(1.0);
   while (depth > 0) {
     hit_record rec;
     if (hit_anything(spheres, spheres_size, r, 0.001, INFINITY, &rec)) {
-      float3 target = rec.p + random_in_unit_sphere(rec.normal);
+      float3 target = rec.p + random_in_unit_sphere() + rec.normal; //Remove + rec.normal for Lambertian
       r = ray_new(rec.p, target - rec.p);
       color *= (float3)(0.5);
     } else {
@@ -171,17 +219,6 @@ __kernel void compute(__global int *array, int width, int height, int depth, __g
   total = width * height;
   seed = round(random_input[x + y * width] * total);
 
-  // if (x==0 && y==0) {
-  //   printf("0: %f\n", random());
-  //   printf("1: %f\n", random());
-  //   printf("2: %f\n", random());
-  // }
-
-  if (y == height / 2) {
-    printf("seed: %d\n", seed);
-  }
-
-
   sphere spheres[2];
   spheres[0].center = (float3)(0.0, 0.0, -1.0);
   spheres[0].radius = 0.5;
@@ -193,7 +230,7 @@ __kernel void compute(__global int *array, int width, int height, int depth, __g
 
   float3 color;
 
-  int samples = 100;
+  int samples = 10;
 
   for (int i = 0; i < samples; i++) {
     float u = (float)(x + random()) / (float)width;
@@ -202,6 +239,7 @@ __kernel void compute(__global int *array, int width, int height, int depth, __g
     color += ray_color(r1, spheres, spheres_size, depth);
   }
   float scale = 1.0 / (float)samples;
+  float test = sqrt(color.x * scale);
   // color.x = sqrt(color.x * scale);
   // color.y = sqrt(color.y * scale);
   // color.z = sqrt(color.z * scale);
