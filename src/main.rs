@@ -107,6 +107,9 @@ fn main() -> Result<(), String> {
         // Show the rendered image
         canvas.present();
 
+        // sleep for 1 second
+        // std::thread::sleep(std::time::Duration::from_millis(1000));
+
         match now.elapsed() {
             Ok(elapsed) => {
                 // it prints '2'

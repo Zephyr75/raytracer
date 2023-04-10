@@ -190,18 +190,25 @@ bool scatter(material mat, hit_record *rec, color *attenuation, ray *scattered) 
 
 
 
-float3 ray_color(ray r, sphere *spheres, int spheres_size, int depth) {
+float3 ray_color(ray r, sphere *spheres, int spheres_size, int depth, int x, int y) {
   float3 color = (float3)(1.0);
   while (depth > 0) {
+    
     hit_record rec;
     if (hit_anything(spheres, spheres_size, r, 0.001, INFINITY, &rec)) {
       float3 target = rec.p + random_in_unit_sphere() + rec.normal; //Remove + rec.normal for Lambertian
       r = ray_new(rec.p, target - rec.p);
       color *= (float3)(0.5);
+      if (x == 0 && y == 0) {
+        printf("duh: %f, %f, %f\n", color.x, color.y, color.z);
+      }
     } else {
       float3 unit_direction = normalize(r.direction);
       float t = 0.5 * (unit_direction.y + 1.0);
       color *= (float3)(1.0 - t) * (float3)(1.0) + t * (float3)(0.5, 0.7, 1.0);
+      if (x == 0 && y == 0) {
+        printf("color: %f, %f, %f\n", color.x, color.y, color.z);
+      }
       break;
     }
     depth--;
@@ -219,12 +226,12 @@ __kernel void compute(__global int *array, int width, int height, int depth, __g
   total = width * height;
   seed = round(random_input[x + y * width] * total);
 
-  sphere spheres[2];
-  spheres[0].center = (float3)(0.0, 0.0, -1.0);
-  spheres[0].radius = 0.5;
-  spheres[1].center = (float3)(0.0, -100.5, -1.0);
-  spheres[1].radius = 100;
-  int spheres_size = 2;
+  sphere spheres[0];
+  // spheres[0].center = (float3)(0.0, 0.0, -1.0);
+  // spheres[0].radius = 0.5;
+  // spheres[1].center = (float3)(0.0, -100.5, -1.0);
+  // spheres[1].radius = 100;
+  int spheres_size = 0;
 
   camera cam = camera_new();
 
@@ -236,14 +243,22 @@ __kernel void compute(__global int *array, int width, int height, int depth, __g
     float u = (float)(x + random()) / (float)width;
     float v = (float)(y + random()) / (float)height;
     ray r1 = get_ray(cam, u, v);
-    color += ray_color(r1, spheres, spheres_size, depth);
+    color += ray_color(r1, spheres, spheres_size, depth, x, y);
   }
   float scale = 1.0 / (float)samples;
-  float test = sqrt(color.x * scale);
-  // color.x = sqrt(color.x * scale);
-  // color.y = sqrt(color.y * scale);
-  // color.z = sqrt(color.z * scale);
-  color *= scale;
+
+  // print color, scale, test
+
+  if (x == 0 && y == 0) {
+    // printf("color: %f, %f, %f ----- ", color.x, color.y, color.z);
+    // printf("scale: %f ----- ", scale);
+    // printf("sqrt: %f, %f, %f \n", sqrt(color.x * scale), sqrt(color.y * scale), sqrt(color.z * scale));
+  }
+
+  color.x = sqrt(color.x * scale);
+  color.y = sqrt(color.y * scale);
+  color.z = sqrt(color.z * scale);
+  // color *= scale;
 
   int r = (int)(255 * color.x);
   int g = (int)(255 * color.y);
